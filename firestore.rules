@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // App ID pattern for EchoBottle
+    match /artifacts/{appId} {
+      // Public bottle pool - anyone can read, authenticated users and guests can create
+      match /public/data/pool_bottles/{bottleId} {
+        allow read: if true;
+        // Allow authenticated users or guests (isGuest field present)
+        allow create: if request.auth != null || request.resource.data.isGuest == true;
+      }
+      
+      // User inbox - only the user can read their own inbox
+      match /users/{userId}/inbox/{bottleId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Guest inbox - guests can create and read their own inbox
+      match /guests/{guestId}/inbox/{bottleId} {
+        allow read: if true; // Allow reading guest inbox (for catch functionality)
+        allow create: if request.resource.data.isGuest == true;
+        allow update: if true; // Allow updating (marking as read)
+        allow delete: if true; // Allow deleting
+      }
+    }
+  }
+}
+

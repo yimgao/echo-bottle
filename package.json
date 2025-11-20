@@ -1,0 +1,33 @@
+{
+  "name": "echobottle",
+  "version": "1.0.0",
+  "description": "A beautiful message-in-a-bottle web application",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:firebase": "FIREBASE_HOSTING=true next build",
+    "start": "next start",
+    "lint": "next lint",
+    "firebase:deploy": "npm run build:firebase && firebase deploy --only hosting",
+    "firebase:rules": "firebase deploy --only firestore:rules"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "next": "^14.0.4",
+    "firebase": "^10.7.1",
+    "lucide-react": "^0.294.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.0.4",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3"
+  }
+}
