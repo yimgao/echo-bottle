@@ -20,8 +20,9 @@ export const ParticleField = ({}: ParticleFieldProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return;
+    const canvas = canvasElement;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -40,13 +41,13 @@ export const ParticleField = ({}: ParticleFieldProps) => {
     window.addEventListener('resize', resizeCanvas);
 
     class ParticleImpl implements Particle {
-      x: number;
-      y: number;
-      size: number;
-      speedY: number;
-      speedX: number;
-      opacity: number;
-      hue: number;
+      x = 0;
+      y = 0;
+      size = 0;
+      speedY = 0;
+      speedX = 0;
+      opacity = 1;
+      hue = 0;
 
       constructor() {
         this.reset();

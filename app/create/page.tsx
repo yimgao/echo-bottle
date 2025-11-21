@@ -7,13 +7,20 @@ import { WebLayout } from '@/components/layout/WebLayout';
 import { FloatingDock } from '@/components/layout/FloatingDock';
 import { CreatePage } from '@/components/pages/CreatePage';
 import { sendBottle } from '@/lib/services/firestore';
-import { auth } from '@/lib/firebase';
 import type { MoodType } from '@/types';
+
+const isPermissionError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string; message?: string };
+  const message = typeof err.message === 'string' ? err.message.toLowerCase() : '';
+  return err.code === 'permission-denied' || message.includes('missing or insufficient permissions');
+};
 
 export default function CreateRoute() {
   const router = useRouter();
   const [isWeb, setIsWeb] = useState<boolean>(false);
-  const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+  const [limitModalType, setLimitModalType] = useState<'guest' | 'user' | 'auth' | null>(null);
+  const showLimitModal = limitModalType !== null;
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -54,7 +61,17 @@ export default function CreateRoute() {
       console.error("Error sending bottle:", e);
       if (e.message === 'GUEST_THROW_LIMIT_REACHED') {
         // Show modal and prevent redirect
-        setShowLimitModal(true);
+        setLimitModalType('guest');
+        // Don't redirect - let modal show
+        return;
+      }
+      if (e.message === 'USER_LIMIT_REACHED') {
+        setLimitModalType('user');
+        // Don't redirect - let modal show
+        return;
+      }
+      if (isPermissionError(e)) {
+        setLimitModalType('auth');
         // Don't redirect - let modal show
         return;
       } else {
@@ -86,22 +103,51 @@ export default function CreateRoute() {
           {showLimitModal && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
               <div className="bg-slate-900/95 border border-amber-500/30 rounded-2xl p-6 max-w-md mx-4 backdrop-blur-xl">
-                <h3 className="text-2xl font-serif text-white mb-2">Daily Throw Limit Reached</h3>
-                <p className="text-white/70 mb-6">You&apos;ve used all 3 throw actions for today. Sign in to continue throwing and catching bottles!</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowLimitModal(false)}
-                    className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleSignIn}
-                    className="flex-1 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-100 hover:bg-amber-500/30 transition-colors"
-                  >
-                    Sign In
-                  </button>
-                </div>
+                <h3 className="text-2xl font-serif text-white mb-2">
+                  {limitModalType === 'user'
+                    ? 'Daily Action Limit Reached'
+                    : limitModalType === 'auth'
+                      ? 'Sign In Required'
+                      : 'Daily Throw Limit Reached'}
+                </h3>
+                <p className="text-white/70 mb-6">
+                  {limitModalType === 'user'
+                    ? "You've used all 10 bottle actions for today. Come back tomorrow to keep drifting!"
+                    : limitModalType === 'auth'
+                      ? 'This action needs a signed-in account. Please sign in to continue your journey.'
+                      : "You've used all 3 guest actions for today. Sign in to continue throwing and catching bottles!"}
+                </p>
+                {limitModalType === 'user' ? (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setLimitModalType(null)}
+                      className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => router.push('/home')}
+                      className="flex-1 px-4 py-2 rounded-xl bg-white/15 border border-white/20 text-white hover:bg-white/25 transition-colors"
+                    >
+                      Go Home
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setLimitModalType(null)}
+                      className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSignIn}
+                      className="flex-1 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-100 hover:bg-amber-500/30 transition-colors"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -120,22 +166,51 @@ export default function CreateRoute() {
           {showLimitModal && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-slate-900/95 border border-amber-500/30 rounded-2xl p-6 w-full max-w-sm backdrop-blur-xl">
-                <h3 className="text-xl font-serif text-white mb-2">Daily Throw Limit Reached</h3>
-                <p className="text-white/70 mb-6 text-sm">You&apos;ve used all 3 throw actions for today. Sign in to continue!</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowLimitModal(false)}
-                    className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-colors text-sm"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleSignIn}
-                    className="flex-1 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-100 hover:bg-amber-500/30 transition-colors text-sm"
-                  >
-                    Sign In
-                  </button>
-                </div>
+                <h3 className="text-xl font-serif text-white mb-2">
+                  {limitModalType === 'user'
+                    ? 'Daily Action Limit Reached'
+                    : limitModalType === 'auth'
+                      ? 'Sign In Required'
+                      : 'Daily Throw Limit Reached'}
+                </h3>
+                <p className="text-white/70 mb-6 text-sm">
+                  {limitModalType === 'user'
+                    ? "You've used all 10 bottle actions for today. Come back tomorrow to keep drifting!"
+                    : limitModalType === 'auth'
+                      ? 'This action needs a signed-in account. Please sign in to continue your journey.'
+                      : "You've used all 3 guest actions for today. Sign in to continue!"}
+                </p>
+                {limitModalType === 'user' ? (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setLimitModalType(null)}
+                      className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-colors text-sm"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => router.push('/home')}
+                      className="flex-1 px-4 py-2 rounded-xl bg-white/15 border border-white/20 text-white hover:bg-white/25 transition-colors text-sm"
+                    >
+                      Go Home
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setLimitModalType(null)}
+                      className="flex-1 px-4 py-2 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 transition-colors text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSignIn}
+                      className="flex-1 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-100 hover:bg-amber-500/30 transition-colors text-sm"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

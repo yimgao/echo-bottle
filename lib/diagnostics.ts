@@ -1,6 +1,6 @@
 'use client';
 
-import { db, auth, isDemoMode, app } from './firebase';
+import { db, auth, isDemoMode } from './firebase';
 import { collection, getDocs, limit, query } from 'firebase/firestore';
 import { appId } from './firebase';
 

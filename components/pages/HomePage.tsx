@@ -47,17 +47,17 @@ export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, ava
             🌊 {availableBottles} {availableBottles === 1 ? 'bottle' : 'bottles'} drifting in the ocean
           </p>
         )}
-        {availableBottles === 0 && !guestStatus?.hasReachedAnyLimit && (
+        {availableBottles === 0 && !guestStatus?.hasReachedLimit && (
           <p className={`${isWeb ? 'text-sm' : 'text-xs'} text-white/40 font-light mb-6 sm:mb-8 px-4 text-center italic`}>
             The ocean is calm... throw the first bottle!
           </p>
         )}
-        {guestStatus && guestStatus.isGuest && (!guestStatus.hasReachedThrowLimit || !guestStatus.hasReachedCatchLimit) && (
+        {guestStatus && guestStatus.isGuest && !guestStatus.hasReachedLimit && (
           <div className={`${isWeb ? 'text-xs' : 'text-[10px]'} text-amber-300/80 font-light mb-4 sm:mb-6 px-4 text-center bg-amber-500/10 border border-amber-500/20 rounded-full py-2 max-w-xs mx-auto`}>
-            🎁 Guest Mode: {guestStatus.throwActionsRemaining} throw{guestStatus.throwActionsRemaining !== 1 ? 's' : ''}, {guestStatus.catchActionsRemaining} catch{guestStatus.catchActionsRemaining !== 1 ? 'es' : ''} remaining today
+            🎁 Guest Mode: {guestStatus.actionsRemaining} action{guestStatus.actionsRemaining !== 1 ? 's' : ''} remaining today
           </div>
         )}
-        {guestStatus && guestStatus.isGuest && guestStatus.hasReachedThrowLimit && guestStatus.hasReachedCatchLimit && (
+        {guestStatus && guestStatus.isGuest && guestStatus.hasReachedLimit && (
           <div className={`${isWeb ? 'text-xs' : 'text-[10px]'} text-amber-200/90 font-medium mb-4 sm:mb-6 px-4 text-center bg-amber-500/20 border border-amber-400/30 rounded-full py-2 max-w-xs mx-auto`}>
             ⚠️ Daily limit reached! <button onClick={() => onNavigate('auth' as any)} className="underline font-bold hover:text-amber-100 transition-colors">Sign in</button> for unlimited access
           </div>

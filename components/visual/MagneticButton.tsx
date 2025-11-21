@@ -1,14 +1,19 @@
 'use client';
 import { useRef, useEffect } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
-export const MagneticButton = ({ children, className = '', onClick, ...props }) => {
-  const buttonRef = useRef(null);
+interface MagneticButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+}
+
+export const MagneticButton = ({ children, className = '', onClick, ...props }: MagneticButtonProps) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const button = buttonRef.current;
     if (!button) return;
 
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       const rect = button.getBoundingClientRect();
       const x = e.clientX - rect.left - rect.width / 2;
       const y = e.clientY - rect.top - rect.height / 2;

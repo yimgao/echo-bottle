@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Wind, Sparkles, Waves, Droplets, Anchor, Send } from 'lucide-react';
 import { Header } from '@/components/visual/Header';
 import { GlassCard } from '@/components/visual/GlassCard';
@@ -18,6 +18,29 @@ export const CreatePage = ({ onNavigate, onSend, isWeb = false }: CreatePageProp
   const [step, setStep] = useState<Step>('compose');
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [guestStatus, setGuestStatus] = useState(getGuestStatus());
+  const isAuthenticated = Boolean(auth && 'currentUser' in auth && auth.currentUser);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateStatus = () => setGuestStatus(getGuestStatus());
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'echobottle_guest_actions') {
+        updateStatus();
+      }
+    };
+    const handleCustom = () => updateStatus();
+
+    updateStatus();
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('echobottle_guest_action', handleCustom);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('echobottle_guest_action', handleCustom);
+    };
+  }, []);
 
   const charCount = text.length;
   const isNearLimit = charCount > 450;
@@ -27,21 +50,16 @@ export const CreatePage = ({ onNavigate, onSend, isWeb = false }: CreatePageProp
     if (!text.trim()) return;
     
     // Check guest throw limit BEFORE showing sending animation
-    const isAuthenticated = auth && 'currentUser' in auth && auth.currentUser;
-    
     if (!isAuthenticated) {
       const status = getGuestStatus();
-      if (status.hasReachedThrowLimit) {
-        // Limit reached - call onSend which will throw error
-        // The error will be caught by parent (handleSendConfirm) which will show modal
-        // Don't show sending animation, stay on compose step
+      setGuestStatus(status);
+      if (status.hasReachedLimit) {
         try {
           const result = onSend({ text, mood: selectedMood });
           if (result instanceof Promise) {
             await result;
           }
         } catch (error) {
-          // Error is handled by parent (handleSendConfirm), but reset step in case
           setStep('compose');
         }
         return;
@@ -196,6 +214,19 @@ export const CreatePage = ({ onNavigate, onSend, isWeb = false }: CreatePageProp
             })}
           </div>
         </div>
+        {!isAuthenticated && guestStatus && (
+          <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+            {!guestStatus.hasReachedLimit ? (
+              <div className="text-[10px] sm:text-xs text-amber-300/80 font-medium text-center bg-amber-500/10 border border-amber-500/20 rounded-full py-2 px-4 max-w-xs mx-auto">
+                🎁 Guest Mode: {guestStatus.actionsRemaining} action{guestStatus.actionsRemaining !== 1 ? 's' : ''} remaining today
+              </div>
+            ) : (
+              <div className="text-[10px] sm:text-xs text-amber-100 font-semibold text-center bg-amber-500/20 border border-amber-400/40 rounded-2xl py-3 px-4 max-w-xs mx-auto">
+                ⚠️ Guest limit reached — <button onClick={() => onNavigate('auth')} className="underline hover:text-white transition-colors">sign in</button> to keep sharing!
+              </div>
+            )}
+          </div>
+        )}
 
             <button 
               onClick={handleSend}

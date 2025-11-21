@@ -23,8 +23,9 @@ export const TextParticles = ({ active = false }: TextParticlesProps) => {
   useEffect(() => {
     if (!active) return;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) return;
+    const canvas = canvasElement;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -44,14 +45,14 @@ export const TextParticles = ({ active = false }: TextParticlesProps) => {
     window.addEventListener('resize', resizeCanvas);
 
     class ParticleImpl implements TextParticle {
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-      opacity: number;
-      life: number;
-      maxLife: number;
+      x = 0;
+      y = 0;
+      size = 0;
+      speedX = 0;
+      speedY = 0;
+      opacity = 0;
+      life = 0;
+      maxLife = 0;
 
       constructor() {
         this.reset();
@@ -93,6 +94,8 @@ export const TextParticles = ({ active = false }: TextParticlesProps) => {
       particles.push(new ParticleImpl());
     }
 
+    let animationId: number;
+
     const animate = () => {
       if (!active) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -100,13 +103,16 @@ export const TextParticles = ({ active = false }: TextParticlesProps) => {
         particle.update();
         particle.draw(ctx);
       });
-      requestAnimationFrame(animate);
+      animationId = requestAnimationFrame(animate);
     };
 
     animate();
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
     };
   }, [active]);
 

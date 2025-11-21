@@ -15,7 +15,7 @@ interface BottleData {
   delay: number;
 }
 
-const Bottle = ({ id, startX, startY, delay }: { id: number; startX: number; startY: number; delay: number }) => {
+const Bottle = ({ startX, startY, delay }: { startX: number; startY: number; delay: number }) => {
   const [position, setPosition] = useState<BottlePosition>({ x: startX, y: startY });
   const ref = useRef<HTMLDivElement>(null);
 
@@ -79,7 +79,6 @@ export const FloatingBottles = ({ count = 8 }: FloatingBottlesProps) => {
       {bottles.map((bottle) => (
         <Bottle
           key={bottle.id}
-          id={bottle.id}
           startX={bottle.startX}
           startY={bottle.startY}
           delay={bottle.delay}

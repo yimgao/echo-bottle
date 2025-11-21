@@ -10,14 +10,40 @@ import {
   updateDoc, 
   serverTimestamp, 
   getDocs, 
-  limit 
+  limit,
+  getDoc,
+  setDoc,
+  increment
 } from 'firebase/firestore';
 import { db, appId, isDemoMode } from '../firebase';
 import { auth } from '../firebase';
 import { SYSTEM_BOTTLES } from '@/constants/moods';
-import { canGuestThrow, canGuestCatch, recordGuestAction, getGuestStatus } from './guest';
+import { recordGuestAction, getGuestStatus } from './guest';
 import type { Bottle, BottlesCallback, Unsubscribe } from '@/types';
 import type { MoodType } from '@/types';
+
+const USER_DAILY_LIMIT = 10;
+
+const checkAndIncrementUserLimit = async (userId: string): Promise<void> => {
+  if (isDemoMode || !db) {
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const statsRef = doc(db, 'artifacts', appId, 'users', userId, 'daily_stats', today);
+  const statsSnap = await getDoc(statsRef);
+  const data = statsSnap.data() as { count?: number } | undefined;
+  const currentCount = data?.count ?? 0;
+
+  if (currentCount >= USER_DAILY_LIMIT) {
+    throw new Error('USER_LIMIT_REACHED');
+  }
+
+  await setDoc(statsRef, {
+    count: increment(1),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+};
 
 export const subscribeToInbox = (userId: string, callback: BottlesCallback): Unsubscribe => {
   if (isDemoMode || !db) {
@@ -50,24 +76,20 @@ export const sendBottle = async (text: string, mood: MoodType): Promise<void> =>
   // Check if user is authenticated
   const isAuthenticated = auth && 'currentUser' in auth && auth.currentUser;
   
-  // If not authenticated, check guest throw limit BEFORE doing anything
   if (!isAuthenticated) {
-    // Get current status to check limit BEFORE recording
     const statusBefore = getGuestStatus();
     
-    // If already at limit, throw error immediately
-    if (statusBefore.hasReachedThrowLimit) {
+    if (statusBefore.hasReachedLimit) {
       throw new Error('GUEST_THROW_LIMIT_REACHED');
     }
     
-    // Record guest action - it also checks limit internally as double-check
     const recorded = recordGuestAction('throw');
     if (!recorded) {
-      // Limit reached during recording - throw error
       throw new Error('GUEST_THROW_LIMIT_REACHED');
     }
-    
-    // Action recorded successfully, proceed with sending
+  } else {
+    const userId = (auth as any).currentUser.uid;
+    await checkAndIncrementUserLimit(userId);
   }
 
   // Use guest ID if not authenticated
@@ -106,24 +128,20 @@ export const catchBottle = async (): Promise<Bottle> => {
   // Check if user is authenticated
   const isAuthenticated = auth && 'currentUser' in auth && auth.currentUser;
   
-  // If not authenticated, check guest catch limit BEFORE doing anything
   if (!isAuthenticated) {
-    // Get current status to check limit BEFORE recording
     const statusBefore = getGuestStatus();
     
-    // If already at limit, throw error immediately
-    if (statusBefore.hasReachedCatchLimit) {
+    if (statusBefore.hasReachedLimit) {
       throw new Error('GUEST_CATCH_LIMIT_REACHED');
     }
     
-    // Record guest action - it also checks limit internally as double-check
     const recorded = recordGuestAction('catch');
     if (!recorded) {
-      // Limit reached during recording - throw error
       throw new Error('GUEST_CATCH_LIMIT_REACHED');
     }
-    
-    // Action recorded successfully, proceed with catching
+  } else {
+    const userId = (auth as any).currentUser.uid;
+    await checkAndIncrementUserLimit(userId);
   }
 
   // Use guest ID or user ID
