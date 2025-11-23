@@ -57,10 +57,11 @@ export const GuestProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onSnapshot(statsRef, (doc) => {
       const count = doc.exists() ? (doc.data().count || 0) : 0;
       // Define limits: 3 for anonymous, 10 for authenticated users
-      const limit = user.isAnonymous ? 3 : 10;
+      const isAnonymous = user.isAnonymous || false;
+      const limit = isAnonymous ? 3 : 10;
       
       setStatus({
-        isGuest: user.isAnonymous,
+        isGuest: isAnonymous,
         actionsRemaining: Math.max(0, limit - count),
         totalActions: count,
         hasReachedLimit: count >= limit
@@ -76,7 +77,7 @@ export const GuestProvider = ({ children }: { children: ReactNode }) => {
     // No-op since we use real-time listener
   }, []);
 
-  const recordAction = useCallback((type: 'throw' | 'catch') => {
+  const recordAction = useCallback((_type: 'throw' | 'catch') => {
     // No-op, handled by Firestore logic
     return true;
   }, []);

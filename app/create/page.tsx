@@ -22,7 +22,7 @@ export default function CreateRoute() {
   const [isWeb, setIsWeb] = useState<boolean>(false);
   const [limitModalType, setLimitModalType] = useState<'guest' | 'user' | 'auth' | null>(null);
   const showLimitModal = limitModalType !== null;
-  const { user, isGuest, isLoading } = useAuthContext();
+  const { user, isLoading } = useAuthContext();
 
   useEffect(() => {
     const checkScreenSize = () => {

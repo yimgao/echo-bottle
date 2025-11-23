@@ -12,7 +12,6 @@ import {
   getDocs, 
   limit,
   getDoc,
-  setDoc,
   increment,
   runTransaction,
   where
@@ -249,8 +248,8 @@ export const catchBottle = async (userId: string | null, isAnonymous: boolean): 
     if (!snapshot.empty) {
       // Filter out user's own bottles
       const othersBottles = snapshot.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(b => b.senderId !== userId);
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter((b: any) => b.senderId !== userId);
       
       if (othersBottles.length > 0) {
         // Pick a random bottle from the available pool

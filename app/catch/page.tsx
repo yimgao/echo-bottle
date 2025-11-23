@@ -15,7 +15,7 @@ const isPermissionError = (error: unknown): boolean => {
 export default function CatchRoute() {
   const router = useRouter();
   const [error, setError] = useState<'GUEST_LIMIT_REACHED' | 'USER_LIMIT_REACHED' | 'AUTH_REQUIRED' | null>(null);
-  const { user, isGuest, isLoading } = useAuthContext();
+  const { user, isLoading } = useAuthContext();
 
   useEffect(() => {
     const handleCatch = async () => {
@@ -79,14 +79,18 @@ export default function CatchRoute() {
               ? 'Daily Action Limit Reached'
               : isAuthRequired
                 ? 'Sign In Required'
-                : 'Daily Catch Limit Reached'}
+                : isGuestLimit
+                  ? 'Daily Catch Limit Reached'
+                  : 'Error'}
           </h3>
           <p className="text-white/70 mb-6">
             {isUserLimit
               ? "You've used all 10 bottle actions for today. Come back tomorrow to continue your voyage!"
               : isAuthRequired
                 ? 'This action needs a signed-in account. Please sign in to keep exploring the ocean.'
-                : "You've used all 3 catch actions for today. Sign in to continue throwing and catching bottles!"}
+                : isGuestLimit
+                  ? "You've used all 3 catch actions for today. Sign in to continue throwing and catching bottles!"
+                  : 'An error occurred while catching a bottle.'}
           </p>
           {isUserLimit ? (
             <div className="flex gap-3">
