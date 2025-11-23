@@ -2,8 +2,28 @@
 
 import { Send, MessageCircle, LogOut, Compass, User } from 'lucide-react';
 import type { WebLayoutProps } from '@/types';
+import { useAuthContext } from '@/lib/context/AuthContext';
+
+type NavRequirements = {
+  requireSignIn?: boolean;
+  requireVerified?: boolean;
+};
 
 export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }: WebLayoutProps) => {
+  const { isSignedIn, isVerified, needsVerification } = useAuthContext();
+
+  const handleNav = (dest: Parameters<WebLayoutProps['onNavigate']>[0], requirements: NavRequirements = {}) => {
+    if (requirements.requireVerified && !(isSignedIn && isVerified)) {
+      onNavigate('auth');
+      return;
+    }
+    if (requirements.requireSignIn && !isSignedIn) {
+      onNavigate('auth');
+      return;
+    }
+    onNavigate(dest);
+  };
+
   return (
     <div className="h-full flex relative">
       <div className="w-80 bg-slate-900/80 backdrop-blur-2xl border-r border-white/20 shadow-2xl flex flex-col p-6 z-20">
@@ -21,7 +41,7 @@ export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }:
 
         <nav className="flex-1 space-y-2">
           <button
-            onClick={() => onNavigate('home')}
+            onClick={() => handleNav('home')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left ${
               page === 'home'
                 ? 'bg-cyan-500/20 border border-cyan-400/30 text-white shadow-lg shadow-cyan-500/10'
@@ -33,7 +53,7 @@ export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }:
           </button>
 
           <button
-            onClick={() => onNavigate('create')}
+            onClick={() => handleNav('create')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left ${
               page === 'create'
                 ? 'bg-cyan-500/20 border border-cyan-400/30 text-white shadow-lg shadow-cyan-500/10'
@@ -45,12 +65,13 @@ export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }:
           </button>
 
           <button
-            onClick={() => onNavigate('inbox')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left relative ${
+            onClick={() => handleNav('inbox', { requireSignIn: true, requireVerified: true })}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left relative disabled:opacity-50 disabled:cursor-not-allowed ${
               page === 'inbox'
                 ? 'bg-cyan-500/20 border border-cyan-400/30 text-white shadow-lg shadow-cyan-500/10'
                 : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20'
             }`}
+            disabled={!(isSignedIn && isVerified)}
           >
             <div className="relative">
               <MessageCircle size={18} className={page === 'inbox' ? 'text-cyan-300' : ''} />
@@ -67,18 +88,34 @@ export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }:
                 {unreadCount}
               </span>
             )}
+            {(!(isSignedIn && isVerified)) && (
+              <span className="absolute -bottom-5 left-0 text-[10px] text-amber-200/80 italic">
+                {needsVerification ? 'Verify email to continue' : 'Sign in required'}
+              </span>
+            )}
           </button>
 
           <button
-            onClick={() => onNavigate('profile')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left ${
+            onClick={() => handleNav('profile', { requireSignIn: true })}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left disabled:opacity-50 disabled:cursor-not-allowed ${
               page === 'profile'
                 ? 'bg-cyan-500/20 border border-cyan-400/30 text-white shadow-lg shadow-cyan-500/10'
                 : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20'
             }`}
+            disabled={!isSignedIn}
           >
             <User size={18} className={page === 'profile' ? 'text-cyan-300' : ''} />
             <span className="font-medium">My Journal</span>
+            {!isSignedIn && (
+              <span className="ml-auto text-[10px] text-amber-200/80 italic pr-1">
+                Sign in
+              </span>
+            )}
+            {isSignedIn && needsVerification && (
+              <span className="ml-auto text-[10px] text-amber-200/80 italic pr-1">
+                Verify email
+              </span>
+            )}
           </button>
         </nav>
 

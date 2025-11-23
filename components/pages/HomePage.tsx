@@ -3,8 +3,14 @@
 import { Send, MessageCircle } from 'lucide-react';
 import { Header } from '@/components/visual/Header';
 import type { HomePageProps } from '@/types';
+import { useAuthContext } from '@/lib/context/AuthContext';
+import { useGuestContext } from '@/lib/context/GuestContext';
 
-export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, availableBottles = 0, guestStatus }: HomePageProps) => {
+export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, availableBottles = 0 }: HomePageProps) => {
+  const { isSignedIn, isVerified, needsVerification, isGuest } = useAuthContext();
+  const canAccessPrivate = isSignedIn && isVerified;
+  const { status: guestStatus } = useGuestContext();
+
   const handleCatchClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -52,12 +58,12 @@ export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, ava
             The ocean is calm... throw the first bottle!
           </p>
         )}
-        {guestStatus && guestStatus.isGuest && !guestStatus.hasReachedLimit && (
+        {isGuest && guestStatus && !guestStatus.hasReachedLimit && (
           <div className={`${isWeb ? 'text-xs' : 'text-[10px]'} text-amber-300/80 font-light mb-4 sm:mb-6 px-4 text-center bg-amber-500/10 border border-amber-500/20 rounded-full py-2 max-w-xs mx-auto`}>
             🎁 Guest Mode: {guestStatus.actionsRemaining} action{guestStatus.actionsRemaining !== 1 ? 's' : ''} remaining today
           </div>
         )}
-        {guestStatus && guestStatus.isGuest && guestStatus.hasReachedLimit && (
+        {isGuest && guestStatus && guestStatus.hasReachedLimit && (
           <div className={`${isWeb ? 'text-xs' : 'text-[10px]'} text-amber-200/90 font-medium mb-4 sm:mb-6 px-4 text-center bg-amber-500/20 border border-amber-400/30 rounded-full py-2 max-w-xs mx-auto`}>
             ⚠️ Daily limit reached! <button onClick={() => onNavigate('auth' as any)} className="underline font-bold hover:text-amber-100 transition-colors">Sign in</button> for unlimited access
           </div>
@@ -73,15 +79,25 @@ export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, ava
             </div>
           </button>
           <button 
-            onClick={() => onNavigate('inbox')}
-            className="w-full rounded-2xl bg-white/5 border border-white/10 p-4 sm:p-5 transition-all hover:bg-white/10 flex items-center justify-center gap-2 text-white/60 hover:text-white active:scale-95 touch-target min-h-[56px] text-sm sm:text-base"
+            onClick={() => onNavigate(canAccessPrivate ? 'inbox' : 'auth')}
+            className={`w-full rounded-2xl border p-4 sm:p-5 transition-all flex items-center justify-center gap-2 touch-target min-h-[56px] text-sm sm:text-base ${
+              canAccessPrivate
+                ? 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white active:scale-95'
+                : 'bg-white/5 border-amber-400/30 text-white/40 hover:bg-white/10 hover:text-white/70 active:scale-95'
+            }`}
           >
             <div className="relative">
                <MessageCircle size={18} />
                {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full animate-ping" />}
                {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full" />}
             </div>
-            <span>My Collection</span>
+            <span>
+              {canAccessPrivate
+                ? 'My Collection'
+                : needsVerification
+                  ? 'Verify email to view'
+                  : 'Sign in to view Collection'}
+            </span>
           </button>
         </div>
       </div>

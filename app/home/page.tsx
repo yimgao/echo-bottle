@@ -8,9 +8,9 @@ import { FloatingDock } from '@/components/layout/FloatingDock';
 import { HomePage } from '@/components/pages/HomePage';
 import { subscribeToInbox, getAvailableBottlesCount } from '@/lib/services/firestore';
 import { auth, isDemoMode } from '@/lib/firebase';
-import { getGuestStatus } from '@/lib/services/guest';
 import type { Bottle } from '@/types';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { useGuestContext } from '@/lib/context/GuestContext';
 
 function HomeContent() {
   const router = useRouter();
@@ -20,7 +20,7 @@ function HomeContent() {
   const [availableBottles, setAvailableBottles] = useState<number>(0);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [showError, setShowError] = useState<boolean>(false);
-  const [guestStatus, setGuestStatus] = useState(getGuestStatus());
+  const { status: guestStatus, refresh: refreshGuestStatus } = useGuestContext();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -35,16 +35,12 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    // Update guest status when page loads or params change
-    setGuestStatus(getGuestStatus());
-    
     // Check for success/error messages
     const success = searchParams.get('success');
     const error = searchParams.get('error');
     
     if (success === 'bottle-sent') {
-      // Update guest status immediately after successful throw
-      setGuestStatus(getGuestStatus());
+      refreshGuestStatus();
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
@@ -59,7 +55,7 @@ function HomeContent() {
         router.replace('/home');
       }, 3000);
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, refreshGuestStatus]);
 
   useEffect(() => {
     setMyBottles([]);
@@ -73,7 +69,6 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
-    // Get available bottles count
     const fetchCount = async () => {
       try {
         const count = await getAvailableBottlesCount();
@@ -83,45 +78,10 @@ function HomeContent() {
       }
     };
 
-      fetchCount();
-      // Refresh count every 30 seconds
-      const interval = setInterval(fetchCount, 30000);
-      return () => clearInterval(interval);
-    }, []);
-
-    // Update guest status when route changes or user state changes
-    useEffect(() => {
-      const updateGuestStatus = () => {
-        setGuestStatus(getGuestStatus());
-      };
-      
-      // Update immediately
-      updateGuestStatus();
-      
-      // Listen for storage changes (when actions are recorded)
-      const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === 'echobottle_guest_actions') {
-          updateGuestStatus();
-        }
-      };
-      
-      // Listen for custom storage event (for same-tab updates)
-      const handleCustomStorageChange = () => {
-        updateGuestStatus();
-      };
-      
-      window.addEventListener('storage', handleStorageChange);
-      window.addEventListener('echobottle_guest_action', handleCustomStorageChange);
-      
-      // Also check periodically as fallback
-      const interval = setInterval(updateGuestStatus, 500);
-      
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('echobottle_guest_action', handleCustomStorageChange);
-        clearInterval(interval);
-      };
-    }, []);
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleNavigate = (dest: string) => {
     if (dest === 'catch') {
@@ -169,7 +129,6 @@ function HomeContent() {
                 onLogout={handleLogout}
                 isWeb={true}
                 availableBottles={availableBottles}
-                guestStatus={guestStatus}
               />
         </div>
       </WebLayout>
@@ -198,14 +157,13 @@ function HomeContent() {
               </div>
             </div>
           )}
-              <HomePage 
-                onNavigate={handleNavigate} 
-                unreadCount={myBottles.filter(b => b.unread).length} 
-                onLogout={handleLogout}
-                isWeb={false}
-                availableBottles={availableBottles}
-                guestStatus={guestStatus}
-              />
+          <HomePage 
+            onNavigate={handleNavigate} 
+            unreadCount={myBottles.filter(b => b.unread).length} 
+            onLogout={handleLogout}
+            isWeb={false}
+            availableBottles={availableBottles}
+          />
         </div>
         <FloatingDock 
           activePage="home"
