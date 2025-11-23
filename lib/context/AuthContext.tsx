@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '@/types';
 import { auth, isDemoMode } from '@/lib/firebase';
-import { subscribeToAuthState } from '@/lib/services/auth';
+import { subscribeToAuthState, initAuth } from '@/lib/services/auth';
 
 interface AuthContextValue {
   user: User | null;
@@ -30,18 +30,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (isDemoMode || !auth || 'currentUser' in auth === false) {
+      console.log('[AuthContext] Demo mode or no auth available');
       setIsLoading(false);
       setUser(null);
       return;
     }
 
-    const unsubscribe = subscribeToAuthState((nextUser) => {
-      setUser(nextUser);
-      setIsLoading(false);
-    });
+    let unsubscribe: (() => void) | null = null;
+
+    // Initialize authentication first, THEN subscribe
+    const initialize = async () => {
+      try {
+        console.log('[AuthContext] Starting initialization...');
+        await initAuth();
+        console.log('[AuthContext] Init complete, setting up listener');
+        
+        // Subscribe to auth state changes AFTER initialization
+        unsubscribe = subscribeToAuthState((nextUser) => {
+          console.log('[AuthContext] Auth state changed:', nextUser?.id, 'isAnonymous:', nextUser?.isAnonymous);
+          setUser(nextUser);
+          setIsLoading(false);
+        });
+      } catch (e) {
+        console.error('[AuthContext] Auth initialization failed:', e);
+        setIsLoading(false);
+      }
+    };
+
+    initialize();
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        console.log('[AuthContext] Cleaning up listener');
+        unsubscribe();
+      }
     };
   }, []);
 

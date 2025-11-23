@@ -7,7 +7,8 @@ import { WebLayout } from '@/components/layout/WebLayout';
 import { FloatingDock } from '@/components/layout/FloatingDock';
 import { InboxPage } from '@/components/pages/InboxPage';
 import { subscribeToInbox, markBottleAsRead } from '@/lib/services/firestore';
-import { auth, isDemoMode } from '@/lib/firebase';
+import { isDemoMode } from '@/lib/firebase';
+import { useAuthContext } from '@/lib/context/AuthContext';
 import type { Bottle } from '@/types';
 
 export default function InboxRoute() {
@@ -15,6 +16,7 @@ export default function InboxRoute() {
   const [myBottles, setMyBottles] = useState<Bottle[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
   const [isWeb, setIsWeb] = useState<boolean>(false);
+  const { user } = useAuthContext();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -30,7 +32,7 @@ export default function InboxRoute() {
 
   useEffect(() => {
     setDataLoading(true);
-    const userId = isDemoMode ? 'demo-user' : (auth?.currentUser?.uid || 'demo-user');
+    const userId = isDemoMode ? 'demo-user' : (user?.id || 'demo-user');
 
     const unsubscribe = subscribeToInbox(userId, (bottles: Bottle[]) => {
       setMyBottles(bottles);
@@ -38,7 +40,7 @@ export default function InboxRoute() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const handleNavigate = (page: string) => {
     router.push(`/${page}`);
@@ -46,7 +48,7 @@ export default function InboxRoute() {
 
   const handleOpenBottle = async (bottle: Bottle) => {
     if (bottle.unread) {
-      const userId = isDemoMode ? 'demo-user' : (auth?.currentUser?.uid || 'demo-user');
+      const userId = isDemoMode ? 'demo-user' : (user?.id || 'demo-user');
       try {
         await markBottleAsRead(userId, bottle.id);
       } catch (e) { 

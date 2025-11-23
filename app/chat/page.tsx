@@ -6,7 +6,8 @@ import { OceanBackground } from '@/components/visual/OceanBackground';
 import { WebLayout } from '@/components/layout/WebLayout';
 import { ChatPage } from '@/components/pages/ChatPage';
 import { subscribeToInbox } from '@/lib/services/firestore';
-import { auth, isDemoMode } from '@/lib/firebase';
+import { isDemoMode } from '@/lib/firebase';
+import { useAuthContext } from '@/lib/context/AuthContext';
 import type { Bottle } from '@/types';
 
 function ChatContent() {
@@ -15,6 +16,7 @@ function ChatContent() {
   const [activeBottle, setActiveBottle] = useState<Bottle | null>(null);
   const [myBottles, setMyBottles] = useState<Bottle[]>([]);
   const [isWeb, setIsWeb] = useState<boolean>(false);
+  const { user } = useAuthContext();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -29,7 +31,7 @@ function ChatContent() {
   }, []);
 
   useEffect(() => {
-    const userId = isDemoMode ? 'demo-user' : (auth?.currentUser?.uid || 'demo-user');
+    const userId = isDemoMode ? 'demo-user' : (user?.id || 'demo-user');
     const bottleId = searchParams.get('id');
 
     if (!bottleId) {
@@ -51,7 +53,7 @@ function ChatContent() {
     });
 
     return () => unsubscribe();
-  }, [searchParams, router]);
+  }, [searchParams, router, user]);
 
   const handleBack = () => {
     router.push('/inbox');

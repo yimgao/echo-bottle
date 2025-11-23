@@ -48,10 +48,12 @@ Firestore Database
         │               ├── content: "Message text..."
         │               ├── type: "sad" | "happy" | "love" | "talk"
         │               ├── createdAt: Timestamp
-        │               └── senderId: "user-123"
+        │               ├── senderId: "user-123"
+        │               ├── isGuest: boolean
+        │               └── random: 0.54321
         │
         └── users/
-            └── {userId}/            # Each user's data
+            └── {userId}/            # Each user's data (includes Anonymous users)
                 └── inbox/          # 📬 User's collected bottles
                     └── {bottleId}  # Individual received bottles
                         ├── content: "Message text..."
@@ -76,7 +78,9 @@ Firestore Database
   content: string,        // The message text
   type: MoodType,        // "sad" | "happy" | "love" | "talk"
   createdAt: Timestamp,  // When it was created
-  senderId: string       // Who sent it (user ID)
+  senderId: string,      // Who sent it (user ID)
+  isGuest: boolean,      // If sender was anonymous
+  random: number         // Random value (0-1) for efficient sampling
 }
 ```
 
@@ -90,7 +94,9 @@ Firestore Database
   "content": "Sometimes I feel like I'm the only one looking at the moon.",
   "type": "sad",
   "createdAt": "2024-01-15T10:30:00Z",
-  "senderId": "user-abc123"
+  "senderId": "user-abc123",
+  "isGuest": false,
+  "random": 0.87654
 }
 ```
 
@@ -152,7 +158,9 @@ await addDoc(
     content: "Hello world",
     type: "happy",
     createdAt: serverTimestamp(),
-    senderId: currentUser.uid
+    senderId: currentUser.uid,
+    isGuest: currentUser.isAnonymous,
+    random: Math.random()
   }
 );
 ```
@@ -165,9 +173,9 @@ await addDoc(
 1. User clicks "Tap to Catch" → HomePage
 2. App calls: catchBottle()
 3. System:
-   - Fetches 20 random bottles from pool_bottles/
-   - Filters out user's own bottles
-   - Picks one randomly
+   - Generates random number
+   - Queries pool_bottles for bottle with >= random value
+   - Checks it's not user's own bottle
    - Creates copy in user's inbox/
 4. ✅ Bottle appears in user's inbox
 ```
@@ -176,15 +184,11 @@ await addDoc(
 ```typescript
 // In catchBottle()
 const poolRef = collection(db, 'artifacts', appId, 'public', 'data', 'pool_bottles');
-const q = query(poolRef, orderBy('createdAt', 'desc'), limit(20));
+const q = query(poolRef, where('random', '>=', Math.random()), orderBy('random'), limit(3));
 const snapshot = await getDocs(q);
 
-// Filter out own bottles
-const othersBottles = snapshot.docs
-  .filter(b => b.senderId !== currentUser.uid);
-
-// Pick random
-const pickedBottle = othersBottles[random];
+// Pick random valid bottle
+// ...
 
 // Add to user's inbox
 await addDoc(
@@ -261,15 +265,18 @@ service cloud.firestore {
       // Public pool - anyone can read, only auth users can create
       match /public/data/pool_bottles/{bottleId} {
         allow read: if true;                    // ✅ Public
-        allow create: if request.auth != null;  // ✅ Must be logged in
+        allow create: if request.auth != null;  // ✅ Must be logged in (Anon or Email)
       }
       
-      // User inbox - only owner can access
-      match /users/{userId}/inbox/{bottleId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if request.auth != null && request.auth.uid == userId;
+      match /users/{userId} {
+        // User inbox - only owner can access
+        match /inbox/{bottleId} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+        // Daily stats - only owner can access
+        match /daily_stats/{day} {
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
       }
     }
   }
@@ -411,6 +418,7 @@ interface Bottle {
   createdAt?: Timestamp;         // Firestore timestamp
   unread?: boolean;              // Read status (inbox only)
   senderId?: string;             // Who sent it (pool only)
+  random?: number;               // Random value (0-1)
 }
 ```
 
@@ -496,4 +504,3 @@ This creates the path: `artifacts/{appId}/public/data/pool_bottles`
 ---
 
 **Your database is ready to use!** 🎉
-

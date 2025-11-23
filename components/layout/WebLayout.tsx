@@ -65,13 +65,12 @@ export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }:
           </button>
 
           <button
-            onClick={() => handleNav('inbox', { requireSignIn: true, requireVerified: true })}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left relative disabled:opacity-50 disabled:cursor-not-allowed ${
+            onClick={() => handleNav('inbox')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 text-left relative ${
               page === 'inbox'
                 ? 'bg-cyan-500/20 border border-cyan-400/30 text-white shadow-lg shadow-cyan-500/10'
                 : 'bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white hover:border-white/20'
             }`}
-            disabled={!(isSignedIn && isVerified)}
           >
             <div className="relative">
               <MessageCircle size={18} className={page === 'inbox' ? 'text-cyan-300' : ''} />
@@ -86,11 +85,6 @@ export const WebLayout = ({ children, page, onNavigate, unreadCount, onLogout }:
             {unreadCount > 0 && (
               <span className="ml-auto bg-rose-500/30 text-rose-100 text-xs px-2 py-1 rounded-full font-bold">
                 {unreadCount}
-              </span>
-            )}
-            {(!(isSignedIn && isVerified)) && (
-              <span className="absolute -bottom-5 left-0 text-[10px] text-amber-200/80 italic">
-                {needsVerification ? 'Verify email to continue' : 'Sign in required'}
               </span>
             )}
           </button>

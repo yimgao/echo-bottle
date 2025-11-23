@@ -8,6 +8,7 @@ import { FloatingDock } from '@/components/layout/FloatingDock';
 import { CreatePage } from '@/components/pages/CreatePage';
 import { sendBottle } from '@/lib/services/firestore';
 import type { MoodType } from '@/types';
+import { useAuthContext } from '@/lib/context/AuthContext';
 
 const isPermissionError = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') return false;
@@ -21,6 +22,7 @@ export default function CreateRoute() {
   const [isWeb, setIsWeb] = useState<boolean>(false);
   const [limitModalType, setLimitModalType] = useState<'guest' | 'user' | 'auth' | null>(null);
   const showLimitModal = limitModalType !== null;
+  const { user, isGuest, isLoading } = useAuthContext();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -39,40 +41,43 @@ export default function CreateRoute() {
   };
 
   const handleSendConfirm = async ({ text, mood }: { text: string; mood: MoodType }) => {
+    console.log('[Create Route] handleSendConfirm called - isLoading:', isLoading, 'user:', user);
+    
+    if (isLoading) {
+      console.log('[Create Route] Still loading, aborting');
+      return;
+    }
+
     try {
-      await sendBottle(text, mood);
-      // Trigger storage event to update guest status - wait a bit for localStorage to update
-      if (typeof window !== 'undefined') {
-        // Small delay to ensure localStorage is updated
-        setTimeout(() => {
-          window.dispatchEvent(new Event('echobottle_guest_action'));
-          // Also trigger storage event manually for same-tab updates
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'echobottle_guest_actions',
-            newValue: localStorage.getItem('echobottle_guest_actions')
-          }));
-        }, 100);
+      const userId = user?.id || null;
+      const isAnonymous = user?.isAnonymous || false;
+      
+      console.log('[Create Route] Sending bottle - userId:', userId, 'isAnonymous:', isAnonymous);
+      
+      if (!userId) {
+        console.error('[Create Route] No userId! Setting auth modal');
+        setLimitModalType('auth');
+        return;
       }
-      // Small delay before redirect to ensure event is processed
-      setTimeout(() => {
-        router.push('/home?success=bottle-sent');
-      }, 200);
+      
+      await sendBottle(userId, isAnonymous, text, mood);
+      console.log('[Create Route] Bottle sent successfully');
+      router.push('/home?success=bottle-sent');
     } catch (e: any) {
-      console.error("Error sending bottle:", e);
-      if (e.message === 'GUEST_THROW_LIMIT_REACHED') {
-        // Show modal and prevent redirect
+      console.error('[Create Route] Error:', e);
+      console.error('[Create Route] Error message:', e.message);
+      console.error('[Create Route] Error code:', e.code);
+      
+      if (e.message === 'GUEST_LIMIT_REACHED') {
         setLimitModalType('guest');
-        // Don't redirect - let modal show
         return;
       }
       if (e.message === 'USER_LIMIT_REACHED') {
         setLimitModalType('user');
-        // Don't redirect - let modal show
         return;
       }
-      if (isPermissionError(e)) {
+      if (e.message === 'AUTH_REQUIRED' || isPermissionError(e)) {
         setLimitModalType('auth');
-        // Don't redirect - let modal show
         return;
       } else {
         router.push('/home?error=send-failed');

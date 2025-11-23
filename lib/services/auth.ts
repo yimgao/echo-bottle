@@ -13,31 +13,64 @@ import {
   type User as FirebaseUser
 } from 'firebase/auth';
 import { auth, isDemoMode } from '../firebase';
-import { clearGuestActions } from './guest';
 import type { Unsubscribe, AuthStateCallback } from '@/types';
 
 const googleProvider = typeof window !== 'undefined' ? new GoogleAuthProvider() : null;
 
+// Prevent multiple simultaneous init calls
+let initPromise: Promise<void> | null = null;
+
 export const initAuth = async (): Promise<void> => {
+  // If already initializing, return the existing promise
+  if (initPromise) {
+    console.log('[Auth] Already initializing, waiting for existing promise...');
+    return initPromise;
+  }
+
   if (isDemoMode || !auth || 'currentUser' in auth === false) {
+    console.log('[Auth] Skipping init - demo mode or no auth');
     return;
   }
   
-  try {
-    // Check for custom token in localStorage (can be set by backend)
-    const customToken = typeof window !== 'undefined' 
-      ? localStorage.getItem('__initial_auth_token') 
-      : null;
+  // Create the initialization promise
+  initPromise = (async () => {
+    try {
+      // If already authenticated, no need to initialize
+      if (auth.currentUser) {
+        console.log('[Auth] Already authenticated as:', auth.currentUser.uid, 'isAnonymous:', auth.currentUser.isAnonymous);
+        return;
+      }
 
-    if (customToken && 'signInWithCustomToken' in auth) {
-      await signInWithCustomToken(auth as any, customToken);
-      localStorage.removeItem('__initial_auth_token');
-    } else if ('signInAnonymously' in auth) {
-      await signInAnonymously(auth as any);
+      console.log('[Auth] No current user, initializing...');
+      console.log('[Auth] Auth object type:', typeof auth, 'Has signInAnonymously?', 'signInAnonymously' in auth);
+
+      // Check for custom token in localStorage (can be set by backend)
+      const customToken = typeof window !== 'undefined' 
+        ? localStorage.getItem('__initial_auth_token') 
+        : null;
+
+      if (customToken) {
+        console.log('[Auth] Found custom token, signing in...');
+        await signInWithCustomToken(auth as any, customToken);
+        localStorage.removeItem('__initial_auth_token');
+        console.log('[Auth] ✓ Signed in with custom token');
+      } else {
+        // Sign in anonymously for guest users
+        console.log('[Auth] No custom token, signing in anonymously...');
+        console.log('[Auth] Calling signInAnonymously on auth object...');
+        const result = await signInAnonymously(auth as any);
+        console.log('[Auth] ✓ Guest user signed in anonymously:', result.user.uid, 'isAnonymous:', result.user.isAnonymous);
+      }
+    } catch (e) {
+      console.error("[Auth] ✗ Auth initialization failed:", e);
+      throw e;
+    } finally {
+      // Clear the promise after completion
+      initPromise = null;
     }
-  } catch (e) {
-    console.error("Auth initialization failed", e);
-  }
+  })();
+
+  return initPromise;
 };
 
 export const subscribeToAuthState = (callback: AuthStateCallback): Unsubscribe => {
@@ -46,12 +79,9 @@ export const subscribeToAuthState = (callback: AuthStateCallback): Unsubscribe =
   }
   
   return onAuthStateChanged(auth as any, (user: FirebaseUser | null) => {
-    if (user) {
-      // Clear guest actions when user signs in
-      clearGuestActions();
-    }
     callback(user ? { 
-      id: user.uid, 
+      id: user.uid,
+      uid: user.uid, // Include both for compatibility
       name: user.displayName || 'Anonymous',
       type: user.isAnonymous ? 'anonymous' : 'email',
       email: user.email,

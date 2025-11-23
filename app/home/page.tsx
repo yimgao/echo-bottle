@@ -7,10 +7,10 @@ import { WebLayout } from '@/components/layout/WebLayout';
 import { FloatingDock } from '@/components/layout/FloatingDock';
 import { HomePage } from '@/components/pages/HomePage';
 import { subscribeToInbox, getAvailableBottlesCount } from '@/lib/services/firestore';
-import { auth, isDemoMode } from '@/lib/firebase';
+import { isDemoMode } from '@/lib/firebase';
 import type { Bottle } from '@/types';
 import { CheckCircle, XCircle } from 'lucide-react';
-import { useGuestContext } from '@/lib/context/GuestContext';
+import { useAuthContext } from '@/lib/context/AuthContext';
 
 function HomeContent() {
   const router = useRouter();
@@ -20,7 +20,7 @@ function HomeContent() {
   const [availableBottles, setAvailableBottles] = useState<number>(0);
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [showError, setShowError] = useState<boolean>(false);
-  const { status: guestStatus, refresh: refreshGuestStatus } = useGuestContext();
+  const { user } = useAuthContext();
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -40,7 +40,6 @@ function HomeContent() {
     const error = searchParams.get('error');
     
     if (success === 'bottle-sent') {
-      refreshGuestStatus();
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
@@ -55,23 +54,24 @@ function HomeContent() {
         router.replace('/home');
       }, 3000);
     }
-  }, [searchParams, router, refreshGuestStatus]);
+  }, [searchParams, router]);
 
   useEffect(() => {
     setMyBottles([]);
-    const userId = isDemoMode ? 'demo-user' : (auth?.currentUser?.uid || 'demo-user');
+    const userId = isDemoMode ? 'demo-user' : (user?.id || 'demo-user');
 
     const unsubscribe = subscribeToInbox(userId, (bottles: Bottle[]) => {
       setMyBottles(bottles);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const count = await getAvailableBottlesCount();
+        const userId = isDemoMode ? 'demo-user' : (user?.id || null);
+        const count = await getAvailableBottlesCount(userId);
         setAvailableBottles(count);
       } catch (e) {
         console.error("Error fetching bottles count:", e);
@@ -81,7 +81,7 @@ function HomeContent() {
     fetchCount();
     const interval = setInterval(fetchCount, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   const handleNavigate = (dest: string) => {
     if (dest === 'catch') {

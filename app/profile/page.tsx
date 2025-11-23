@@ -1,18 +1,23 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { OceanBackground } from '@/components/visual/OceanBackground';
 import { WebLayout } from '@/components/layout/WebLayout';
 import { FloatingDock } from '@/components/layout/FloatingDock';
 import { ProfilePage } from '@/components/pages/ProfilePage';
-import { auth, isDemoMode } from '@/lib/firebase';
+import { isDemoMode } from '@/lib/firebase';
+import { useAuthContext } from '@/lib/context/AuthContext';
+import { subscribeToInbox, countUserSentBottles } from '@/lib/services/firestore';
 import type { User } from '@/types';
 
 export default function ProfileRoute() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
   const [isWeb, setIsWeb] = useState<boolean>(false);
+  const { user } = useAuthContext();
+  const [collectedCount, setCollectedCount] = useState<number>(0);
+  const [thrownCount, setThrownCount] = useState<number>(0);
+  const [statsLoading, setStatsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -26,21 +31,48 @@ export default function ProfileRoute() {
     }
   }, []);
 
-  useEffect(() => {
-    if (isDemoMode) {
-      setUser({ name: "Traveler", id: "demo-user" });
-    } else if (auth?.currentUser) {
-      setUser({ 
-        name: auth.currentUser.displayName || "Anonymous", 
-        id: auth.currentUser.uid 
-      });
+  const demoMode = useMemo(() => isDemoMode, []);
+
+  const resolvedUser: User | null = useMemo(() => {
+    if (demoMode) {
+      return { name: 'Traveler', id: 'demo-user', email: null, emailVerified: true, isAnonymous: true };
     }
-  }, []);
+    return user || null;
+  }, [demoMode, user]);
+
+  useEffect(() => {
+    if (demoMode || !resolvedUser || resolvedUser.isAnonymous) {
+      setCollectedCount(0);
+      setThrownCount(0);
+      setStatsLoading(false);
+      return;
+    }
+
+    setStatsLoading(true);
+    let unsubscribe: (() => void) | undefined;
+
+    unsubscribe = subscribeToInbox(resolvedUser.id, (bottles) => {
+      setCollectedCount(bottles.length);
+    });
+
+    countUserSentBottles(resolvedUser.id)
+      .then((count) => setThrownCount(count))
+      .finally(() => setStatsLoading(false));
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [resolvedUser, demoMode]);
 
   const handleLogout = async () => {
     const { logout } = await import('@/lib/services/auth');
     await logout();
     router.push('/auth');
+  };
+
+  const handleResendVerification = async () => {
+    const { resendVerificationEmail } = await import('@/lib/services/auth');
+    await resendVerificationEmail();
   };
 
   if (isWeb) {
@@ -54,8 +86,12 @@ export default function ProfileRoute() {
         <OceanBackground isWeb={true} />
         <div className="absolute inset-0 z-10 transition-opacity duration-500 h-full overflow-hidden">
           <ProfilePage 
-            user={user}
+            user={resolvedUser}
             onLogout={handleLogout}
+            onResendVerification={handleResendVerification}
+            collectedCount={collectedCount}
+            thrownCount={thrownCount}
+            statsLoading={statsLoading}
             isWeb={true}
           />
         </div>
@@ -70,8 +106,12 @@ export default function ProfileRoute() {
         <OceanBackground isWeb={false} />
         <div className="absolute inset-0 z-10 transition-opacity duration-500 h-full overflow-hidden">
           <ProfilePage 
-            user={user}
+            user={resolvedUser}
             onLogout={handleLogout}
+            onResendVerification={handleResendVerification}
+            collectedCount={collectedCount}
+            thrownCount={thrownCount}
+            statsLoading={statsLoading}
             isWeb={false}
           />
         </div>

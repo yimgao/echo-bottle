@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { catchBottle } from '@/lib/services/firestore';
+import { useAuthContext } from '@/lib/context/AuthContext';
 
 const isPermissionError = (error: unknown): boolean => {
   if (!error || typeof error !== 'object') return false;
@@ -13,37 +14,63 @@ const isPermissionError = (error: unknown): boolean => {
 
 export default function CatchRoute() {
   const router = useRouter();
-  const [error, setError] = useState<'GUEST_CATCH_LIMIT_REACHED' | 'USER_LIMIT_REACHED' | 'AUTH_REQUIRED' | null>(null);
+  const [error, setError] = useState<'GUEST_LIMIT_REACHED' | 'USER_LIMIT_REACHED' | 'AUTH_REQUIRED' | null>(null);
+  const { user, isGuest, isLoading } = useAuthContext();
 
   useEffect(() => {
     const handleCatch = async () => {
+      console.log('[Catch Route] handleCatch called - isLoading:', isLoading, 'user:', user);
+      
+      if (isLoading) {
+        console.log('[Catch Route] Still loading, waiting...');
+        return; // Wait for auth to settle
+      }
+      
       try {
-        const bottle = await catchBottle();
-        // Trigger storage event to update guest status in other components
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('echobottle_guest_action'));
+        const userId = user?.id || null;
+        const isAnonymous = user?.isAnonymous || false;
+        
+        console.log('[Catch Route] Attempting catch - userId:', userId, 'isAnonymous:', isAnonymous);
+        
+        if (!userId) {
+          // If not loading and no user, something failed or auth didn't happen
+          console.error('[Catch Route] No userId! Setting AUTH_REQUIRED error');
+          setError('AUTH_REQUIRED');
+          return;
         }
+        
+        const bottle = await catchBottle(userId, isAnonymous);
+        console.log('[Catch Route] Successfully caught bottle:', bottle.id);
         router.push(`/chat?id=${bottle.id}`);
       } catch (e: any) {
-        console.error("Catch error:", e);
-        if (e.message === 'GUEST_CATCH_LIMIT_REACHED') {
-          setError('GUEST_CATCH_LIMIT_REACHED');
-        } else if (e.message === 'USER_LIMIT_REACHED') {
+        console.error('[Catch Route] Error:', e);
+        console.error('[Catch Route] Error message:', e.message);
+        console.error('[Catch Route] Error code:', e.code);
+        
+        if (e.message === 'USER_LIMIT_REACHED') {
           setError('USER_LIMIT_REACHED');
-        } else if (isPermissionError(e)) {
-          setError('AUTH_REQUIRED');
-        } else {
-          router.push('/home?error=catch-failed');
+          return;
         }
+        if (e.message === 'GUEST_LIMIT_REACHED') {
+          setError('GUEST_LIMIT_REACHED');
+          return;
+        }
+        if (e.message === 'AUTH_REQUIRED' || isPermissionError(e)) {
+          setError('AUTH_REQUIRED');
+          return;
+        }
+
+        router.push('/home?error=catch-failed');
       }
     };
 
     handleCatch();
-  }, [router]);
+  }, [router, user, isLoading]);
 
   if (error) {
     const isUserLimit = error === 'USER_LIMIT_REACHED';
     const isAuthRequired = error === 'AUTH_REQUIRED';
+    const isGuestLimit = error === 'GUEST_LIMIT_REACHED';
     return (
       <div className="w-full h-screen flex items-center justify-center bg-slate-900 p-4">
         <div className="bg-slate-900/95 border border-amber-500/30 rounded-2xl p-6 max-w-md backdrop-blur-xl">

@@ -6,8 +6,8 @@ import { Header } from '@/components/visual/Header';
 import { GlassCard } from '@/components/visual/GlassCard';
 import { MOODS } from '@/constants/moods';
 import { TextParticles } from '@/components/visual/TextParticles';
-import { auth } from '@/lib/firebase';
-import { getGuestStatus } from '@/lib/services/guest';
+import { useAuthContext } from '@/lib/context/AuthContext';
+import { getUserDailyStatus } from '@/lib/services/firestore';
 import type { CreatePageProps, MoodType, PageType } from '@/types';
 
 type Step = 'compose' | 'sending';
@@ -17,30 +17,32 @@ export const CreatePage = ({ onNavigate, onSend, isWeb = false }: CreatePageProp
   const [selectedMood, setSelectedMood] = useState<MoodType>('talk');
   const [step, setStep] = useState<Step>('compose');
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [dailyStatus, setDailyStatus] = useState<{ 
+    throwUsed: number; 
+    throwLimit: number; 
+    throwRemaining: number; 
+    catchUsed: number;
+    catchLimit: number;
+    catchRemaining: number;
+    used: number; 
+    limit: number; 
+    remaining: number; 
+    hasReachedLimit: boolean;
+  } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [guestStatus, setGuestStatus] = useState(getGuestStatus());
-  const isAuthenticated = Boolean(auth && 'currentUser' in auth && auth.currentUser);
+  const { user, isGuest } = useAuthContext();
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const updateStatus = () => setGuestStatus(getGuestStatus());
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'echobottle_guest_actions') {
-        updateStatus();
+    const fetchDailyStatus = async () => {
+      if (user && isGuest) {
+        const status = await getUserDailyStatus(user.id, user.isAnonymous || false);
+        setDailyStatus(status);
+      } else {
+        setDailyStatus(null);
       }
     };
-    const handleCustom = () => updateStatus();
-
-    updateStatus();
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('echobottle_guest_action', handleCustom);
-
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('echobottle_guest_action', handleCustom);
-    };
-  }, []);
+    fetchDailyStatus();
+  }, [user, isGuest]);
 
   const charCount = text.length;
   const isNearLimit = charCount > 450;
@@ -49,24 +51,7 @@ export const CreatePage = ({ onNavigate, onSend, isWeb = false }: CreatePageProp
   const handleSend = async () => {
     if (!text.trim()) return;
     
-    // Check guest throw limit BEFORE showing sending animation
-    if (!isAuthenticated) {
-      const status = getGuestStatus();
-      setGuestStatus(status);
-      if (status.hasReachedLimit) {
-        try {
-          const result = onSend({ text, mood: selectedMood });
-          if (result instanceof Promise) {
-            await result;
-          }
-        } catch (error) {
-          setStep('compose');
-        }
-        return;
-      }
-    }
-    
-    // Proceed with normal flow - show sending animation
+    // Show sending animation
     setStep('sending');
     setTimeout(async () => {
       try {
@@ -214,15 +199,15 @@ export const CreatePage = ({ onNavigate, onSend, isWeb = false }: CreatePageProp
             })}
           </div>
         </div>
-        {!isAuthenticated && guestStatus && (
+        {isGuest && dailyStatus && (
           <div className="animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
-            {!guestStatus.hasReachedLimit ? (
+            {dailyStatus.throwRemaining > 0 ? (
               <div className="text-[10px] sm:text-xs text-amber-300/80 font-medium text-center bg-amber-500/10 border border-amber-500/20 rounded-full py-2 px-4 max-w-xs mx-auto">
-                🎁 Guest Mode: {guestStatus.actionsRemaining} action{guestStatus.actionsRemaining !== 1 ? 's' : ''} remaining today
+                📤 Guest Mode: {dailyStatus.throwRemaining} throw{dailyStatus.throwRemaining !== 1 ? 's' : ''} remaining today
               </div>
             ) : (
               <div className="text-[10px] sm:text-xs text-amber-100 font-semibold text-center bg-amber-500/20 border border-amber-400/40 rounded-2xl py-3 px-4 max-w-xs mx-auto">
-                ⚠️ Guest limit reached — <button onClick={() => onNavigate('auth')} className="underline hover:text-white transition-colors">sign in</button> to keep sharing!
+                ⚠️ Guest throw limit reached — <button onClick={() => onNavigate('auth')} className="underline hover:text-white transition-colors">sign in</button> for more!
               </div>
             )}
           </div>

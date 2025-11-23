@@ -1,15 +1,39 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Send, MessageCircle } from 'lucide-react';
 import { Header } from '@/components/visual/Header';
 import type { HomePageProps } from '@/types';
 import { useAuthContext } from '@/lib/context/AuthContext';
-import { useGuestContext } from '@/lib/context/GuestContext';
+import { getUserDailyStatus } from '@/lib/services/firestore';
 
 export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, availableBottles = 0 }: HomePageProps) => {
-  const { isSignedIn, isVerified, needsVerification, isGuest } = useAuthContext();
+  const { user, isSignedIn, isVerified, needsVerification, isGuest } = useAuthContext();
   const canAccessPrivate = isSignedIn && isVerified;
-  const { status: guestStatus } = useGuestContext();
+  const [dailyStatus, setDailyStatus] = useState<{ 
+    throwUsed: number; 
+    throwLimit: number; 
+    throwRemaining: number; 
+    catchUsed: number;
+    catchLimit: number;
+    catchRemaining: number;
+    used: number; 
+    limit: number; 
+    remaining: number; 
+    hasReachedLimit: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchDailyStatus = async () => {
+      if (user && isGuest) {
+        const status = await getUserDailyStatus(user.id, user.isAnonymous || false);
+        setDailyStatus(status);
+      } else {
+        setDailyStatus(null);
+      }
+    };
+    fetchDailyStatus();
+  }, [user, isGuest]);
 
   const handleCatchClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -53,17 +77,17 @@ export const HomePage = ({ onNavigate, unreadCount, onLogout, isWeb = false, ava
             🌊 {availableBottles} {availableBottles === 1 ? 'bottle' : 'bottles'} drifting in the ocean
           </p>
         )}
-        {availableBottles === 0 && !guestStatus?.hasReachedLimit && (
+        {availableBottles === 0 && (!dailyStatus || !dailyStatus.hasReachedLimit) && (
           <p className={`${isWeb ? 'text-sm' : 'text-xs'} text-white/40 font-light mb-6 sm:mb-8 px-4 text-center italic`}>
             The ocean is calm... throw the first bottle!
           </p>
         )}
-        {isGuest && guestStatus && !guestStatus.hasReachedLimit && (
+        {isGuest && dailyStatus && !dailyStatus.hasReachedLimit && (
           <div className={`${isWeb ? 'text-xs' : 'text-[10px]'} text-amber-300/80 font-light mb-4 sm:mb-6 px-4 text-center bg-amber-500/10 border border-amber-500/20 rounded-full py-2 max-w-xs mx-auto`}>
-            🎁 Guest Mode: {guestStatus.actionsRemaining} action{guestStatus.actionsRemaining !== 1 ? 's' : ''} remaining today
+            🎁 Guest Mode: {dailyStatus.throwRemaining} throw{dailyStatus.throwRemaining !== 1 ? 's' : ''} + {dailyStatus.catchRemaining} catch{dailyStatus.catchRemaining !== 1 ? 'es' : ''} left today
           </div>
         )}
-        {isGuest && guestStatus && guestStatus.hasReachedLimit && (
+        {isGuest && dailyStatus && dailyStatus.hasReachedLimit && (
           <div className={`${isWeb ? 'text-xs' : 'text-[10px]'} text-amber-200/90 font-medium mb-4 sm:mb-6 px-4 text-center bg-amber-500/20 border border-amber-400/30 rounded-full py-2 max-w-xs mx-auto`}>
             ⚠️ Daily limit reached! <button onClick={() => onNavigate('auth' as any)} className="underline font-bold hover:text-amber-100 transition-colors">Sign in</button> for unlimited access
           </div>

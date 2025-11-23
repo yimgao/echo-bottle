@@ -1,10 +1,32 @@
 'use client';
 
-import { User, Send } from 'lucide-react';
+import { useState } from 'react';
+import { User, Send, Mail, RefreshCcw, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { GlassCard } from '@/components/visual/GlassCard';
 import type { ProfilePageProps } from '@/types';
 
-export const ProfilePage = ({ onLogout, user, isWeb = false }: ProfilePageProps) => {
+export const ProfilePage = ({ onLogout, user, isWeb = false, onResendVerification, collectedCount = 0, thrownCount = 0, statsLoading = false }: ProfilePageProps) => {
+  const [resendState, setResendState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [resendMessage, setResendMessage] = useState<string>('');
+
+  const isAnonymous = user?.isAnonymous;
+  const showVerificationBlock = Boolean(user && !isAnonymous);
+  const isVerified = Boolean(user?.emailVerified);
+
+  const handleResend = async () => {
+    if (!onResendVerification) return;
+    try {
+      setResendState('loading');
+      setResendMessage('');
+      await onResendVerification();
+      setResendState('success');
+      setResendMessage('Verification email sent! Check your inbox.');
+    } catch (error: any) {
+      setResendState('error');
+      setResendMessage(error?.message || 'Failed to send verification email.');
+    }
+  };
+
   return (
     <div className={`h-full w-full flex flex-col p-4 sm:p-6 pt-8 sm:pt-10 ${!isWeb ? 'pb-24 sm:pb-28' : 'pb-8'} max-w-2xl mx-auto overflow-y-auto custom-scrollbar animate-fade-in`}>
       {!isWeb && (
@@ -42,29 +64,74 @@ export const ProfilePage = ({ onLogout, user, isWeb = false }: ProfilePageProps)
         </div>
         <div className="mt-6 sm:mt-8 flex gap-3 sm:gap-4">
           <div className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-black/30 border border-white/5 text-center backdrop-blur-sm">
-            <div className="text-2xl sm:text-3xl font-serif text-white mb-1">0</div>
+            <div className="text-2xl sm:text-3xl font-serif text-white mb-1 flex items-center justify-center gap-2">
+              {statsLoading ? <Loader2 size={20} className="animate-spin text-white/70" /> : collectedCount}
+            </div>
             <div className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-widest">Collected</div>
           </div>
           <div className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-black/30 border border-white/5 text-center backdrop-blur-sm">
-            <div className="text-2xl sm:text-3xl font-serif text-white mb-1">0</div>
+            <div className="text-2xl sm:text-3xl font-serif text-white mb-1 flex items-center justify-center gap-2">
+              {statsLoading ? <Loader2 size={20} className="animate-spin text-white/70" /> : thrownCount}
+            </div>
             <div className="text-[9px] sm:text-[10px] text-white/40 uppercase tracking-widest">Thrown</div>
           </div>
         </div>
+
+        {showVerificationBlock && (
+          <div className="mt-6 sm:mt-8 p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 backdrop-blur-md flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Mail size={18} className="text-white/60" />
+              <div>
+                <p className="text-sm text-white/80">{user?.email || 'No email on file'}</p>
+                <p className={`text-xs font-semibold ${isVerified ? 'text-emerald-300' : 'text-amber-300'}`}>
+                  {isVerified ? 'Email verified' : 'Email not verified'}
+                </p>
+              </div>
+            </div>
+            {!isVerified && (
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleResend}
+                  disabled={resendState === 'loading'}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30 text-amber-100 hover:bg-amber-500/30 transition-colors text-xs sm:text-sm font-semibold touch-target disabled:opacity-60"
+                >
+                  <RefreshCcw size={14} className={resendState === 'loading' ? 'animate-spin' : ''} />
+                  Resend verification email
+                </button>
+                {resendState === 'success' && (
+                  <div className="flex items-center gap-2 text-emerald-300 text-xs">
+                    <CheckCircle size={14} />
+                    <span>{resendMessage}</span>
+                  </div>
+                )}
+                {resendState === 'error' && (
+                  <div className="flex items-center gap-2 text-rose-300 text-xs">
+                    <AlertCircle size={14} />
+                    <span>{resendMessage}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </GlassCard>
 
       <h3 className="text-[10px] sm:text-xs font-bold text-white/40 uppercase tracking-widest mb-3 sm:mb-4 ml-2">Sent History</h3>
       <div className="space-y-2 sm:space-y-3">
-        <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors active:scale-[0.98] touch-target">
-          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5 shrink-0">
-            <Send size={14} className="sm:w-4 sm:h-4 text-white/40"/>
+        {thrownCount > 0 ? (
+          <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors active:scale-[0.98] touch-target">
+            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5 shrink-0">
+              <Send size={14} className="sm:w-4 sm:h-4 text-white/40"/>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="h-2 w-3/4 bg-white/10 rounded-full mb-2" />
+              <div className="h-2 w-1/3 bg-white/10 rounded-full" />
+            </div>
+            <span className="text-[9px] sm:text-[10px] text-white/20 uppercase tracking-widest shrink-0">Recent</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="h-2 w-3/4 bg-white/10 rounded-full mb-2" />
-            <div className="h-2 w-1/3 bg-white/10 rounded-full" />
-          </div>
-          <span className="text-[9px] sm:text-[10px] text-white/20 uppercase tracking-widest shrink-0">New</span>
-        </div>
-        <p className="text-white/30 text-xs sm:text-sm text-center py-6 sm:py-8 font-serif italic px-4">No messages sent yet. Cast your first bottle into the ocean.</p>
+        ) : (
+          <p className="text-white/30 text-xs sm:text-sm text-center py-6 sm:py-8 font-serif italic px-4">No messages sent yet. Cast your first bottle into the ocean.</p>
+        )}
       </div>
     </div>
   );

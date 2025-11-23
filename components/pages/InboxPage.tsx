@@ -9,11 +9,11 @@ import type { InboxPageProps, PageType } from '@/types';
 export const InboxPage = ({ onNavigate, bottles, onOpenBottle, isLoading, isWeb = false }: InboxPageProps) => {
   return (
     <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8">
-      {!isWeb && <Header onBack={() => onNavigate('home' as PageType)} title="Found Bottles" />}
+      {!isWeb && <Header onBack={() => onNavigate('home' as PageType)} title="My Collection" />}
       
       {isWeb && (
         <div className="mb-4 sm:mb-6">
-          <h2 className="text-2xl sm:text-3xl font-serif text-white/90 mb-2">Found Bottles</h2>
+          <h2 className="text-2xl sm:text-3xl font-serif text-white/90 mb-2">My Collection</h2>
           <p className="text-white/50 text-xs sm:text-sm">Messages washed up on your shore</p>
         </div>
       )}

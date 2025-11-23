@@ -19,7 +19,7 @@ export const FloatingDock = ({ activePage, onNavigate, unreadCount }: FloatingDo
   const navItems: DockItem[] = [
     { id: 'home', icon: Compass, label: 'Ocean' },
     { id: 'create', icon: Send, label: 'Cast' },
-    { id: 'inbox', icon: MessageCircle, label: 'Collection', badge: unreadCount, requireSignIn: true, requireVerified: true },
+    { id: 'inbox', icon: MessageCircle, label: 'Collection', badge: unreadCount }, // ✅ Guest users can access their inbox
     { id: 'profile', icon: User, label: 'Me', requireSignIn: true },
   ];
 

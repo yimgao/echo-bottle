@@ -5,6 +5,7 @@ import { MOODS } from '@/constants/moods';
 export interface User {
   name: string;
   id: string;
+  uid?: string; // Alias for id (Firebase compatibility)
   type?: string;
   email?: string | null;
   emailVerified?: boolean;
@@ -61,12 +62,6 @@ export interface HomePageProps {
   onLogout: () => void;
   isWeb?: boolean;
   availableBottles?: number;
-  guestStatus?: {
-    isGuest: boolean;
-    actionsRemaining: number;
-    totalActions: number;
-    hasReachedLimit: boolean;
-  };
 }
 
 export interface CreatePageProps {
@@ -92,6 +87,10 @@ export interface ChatPageProps {
 export interface ProfilePageProps {
   user: User | null;
   onLogout: () => void;
+  onResendVerification?: () => Promise<void>;
+  collectedCount?: number;
+  thrownCount?: number;
+  statsLoading?: boolean;
   isWeb?: boolean;
 }
 
