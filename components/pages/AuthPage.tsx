@@ -6,9 +6,12 @@ import { isDemoMode } from '@/lib/firebase';
 import { GlassCard } from '@/components/visual/GlassCard';
 import type { AuthPageProps } from '@/types';
 
-export const AuthPage = ({ onLogin, loadingType = null, errorMessage = null, onGuestAccess }: AuthPageProps) => {
+export const AuthPage = ({ onLogin, loadingType = null, errorMessage = null, successMessage = null, onGuestAccess }: AuthPageProps) => {
   const [email, setEmail] = useState<string>('');
-  const disableEmail = true; // Placeholder until email auth is implemented
+  const [password, setPassword] = useState<string>('');
+  const [emailMode, setEmailMode] = useState<'login' | 'signup'>('login');
+  const isEmailLoading = loadingType === 'email';
+  const canSubmitEmail = email.trim().length > 0 && password.length >= 6 && !isEmailLoading;
 
   return (
     <div className="h-full flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 relative z-20">
@@ -42,7 +45,7 @@ export const AuthPage = ({ onLogin, loadingType = null, errorMessage = null, onG
       
       <div className="w-full max-w-md space-y-3 sm:space-y-4 px-4">
         <GlassCard 
-          onClick={() => onLogin('google')}
+          onClick={() => onLogin({ type: 'google' })}
           className={`w-full p-4 sm:p-5 rounded-xl flex items-center justify-center gap-3 cursor-pointer group hover:bg-white/10 active:scale-95 touch-target min-h-[56px] ${loadingType === 'google' ? 'opacity-60 pointer-events-none' : ''}`}
         >
           <div className="w-6 h-6 rounded-full bg-white text-slate-900 flex items-center justify-center font-bold text-xs shadow-lg shrink-0">G</div>
@@ -53,7 +56,7 @@ export const AuthPage = ({ onLogin, loadingType = null, errorMessage = null, onG
         </GlassCard>
         
         <GlassCard 
-          onClick={() => onLogin('anon')}
+          onClick={() => onLogin({ type: 'anon' })}
           className={`w-full p-4 sm:p-5 rounded-xl flex items-center justify-center gap-3 cursor-pointer group hover:bg-white/10 active:scale-95 touch-target min-h-[56px] ${loadingType === 'anon' ? 'opacity-60 pointer-events-none' : ''}`}
         >
           <User size={18} className="text-white/60 group-hover:text-white shrink-0"/>
@@ -85,17 +88,55 @@ export const AuthPage = ({ onLogin, loadingType = null, errorMessage = null, onG
                     type="password" 
                     placeholder="••••••••" 
                     className="bg-transparent border-none text-white placeholder:text-white/20 text-sm sm:text-base focus:outline-none w-full"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                 />
             </div>
         </div>
         <button 
-            onClick={() => onLogin('email')}
-            disabled={!email || disableEmail}
+            onClick={() => onLogin({ type: 'email', email: email.trim(), password, mode: emailMode })}
+            disabled={!canSubmitEmail}
             className="w-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-100 py-4 sm:py-5 rounded-xl sm:rounded-2xl font-bold hover:bg-cyan-500/30 hover:shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:border-cyan-400/50 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-2 group relative overflow-hidden touch-target min-h-[56px] text-sm sm:text-base"
         >
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-400/20 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          <span className="relative z-10">Log In</span>
+          <span className="relative z-10 flex items-center justify-center gap-2">
+            {isEmailLoading && <Loader2 size={16} className="animate-spin text-white/70" />}
+            {emailMode === 'login' ? 'Log In' : 'Create Account'}
+          </span>
         </button>
+        {/* <p className="text-[10px] sm:text-xs text-white/40 text-center mt-2">
+          Use any email provider (Gmail, Yahoo, Outlook, etc.). Password must be at least 6 characters.
+        </p> */}
+        <div className="text-center text-xs sm:text-sm text-white/50 mt-2">
+          {emailMode === 'login' ? (
+            <>
+              Need an account?{' '}
+              <button
+                type="button"
+                className="text-cyan-200 hover:text-white underline font-medium"
+                onClick={() => setEmailMode('signup')}
+              >
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                className="text-cyan-200 hover:text-white underline font-medium"
+                onClick={() => setEmailMode('login')}
+              >
+                Log in
+              </button>
+            </>
+          )}
+        </div>
+        {successMessage && (
+          <div className="text-center text-xs sm:text-sm text-emerald-300 mt-2">
+            {successMessage}
+          </div>
+        )}
         {errorMessage && (
           <div className="text-center text-xs sm:text-sm text-rose-300 mt-2">
             {errorMessage}

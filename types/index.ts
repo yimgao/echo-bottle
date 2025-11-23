@@ -6,6 +6,9 @@ export interface User {
   name: string;
   id: string;
   type?: string;
+  email?: string | null;
+  emailVerified?: boolean;
+  isAnonymous?: boolean;
 }
 
 // Bottle/Message types
@@ -35,12 +38,20 @@ export type PageType = 'auth' | 'home' | 'create' | 'inbox' | 'chat' | 'profile'
 
 export type NavigationDestination = PageType | 'catch';
 
+export type EmailAuthMode = 'login' | 'signup';
+
+export type AuthLoginRequest =
+  | { type: 'google' }
+  | { type: 'anon' }
+  | { type: 'email'; email: string; password: string; mode: EmailAuthMode };
+
 // Component prop types
 export interface AuthPageProps {
-  onLogin: (type: 'google' | 'anon' | 'email') => Promise<void> | void;
+  onLogin: (request: AuthLoginRequest) => Promise<void> | void;
   isLoading?: boolean;
   loadingType?: 'google' | 'anon' | 'email' | null;
   errorMessage?: string | null;
+  successMessage?: string | null;
   onGuestAccess?: () => void;
 }
 

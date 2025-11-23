@@ -7,6 +7,9 @@ import {
   signOut,
   signInWithPopup,
   GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
   type User as FirebaseUser
 } from 'firebase/auth';
 import { auth, isDemoMode } from '../firebase';
@@ -47,7 +50,14 @@ export const subscribeToAuthState = (callback: AuthStateCallback): Unsubscribe =
       // Clear guest actions when user signs in
       clearGuestActions();
     }
-    callback(user ? { id: user.uid, name: user.displayName || 'Anonymous' } : null);
+    callback(user ? { 
+      id: user.uid, 
+      name: user.displayName || 'Anonymous',
+      type: user.isAnonymous ? 'anonymous' : 'email',
+      email: user.email,
+      emailVerified: user.emailVerified,
+      isAnonymous: user.isAnonymous
+    } : null);
   });
 };
 
@@ -72,5 +82,44 @@ export const loginAnonymously = async (): Promise<void> => {
   }
 
   await signInAnonymously(auth as any);
+};
+
+export const loginWithEmail = async (email: string, password: string): Promise<void> => {
+  if (isDemoMode || !auth || 'currentUser' in auth === false) {
+    throw new Error('Email login is unavailable in demo mode.');
+  }
+
+  const credential = await signInWithEmailAndPassword(auth as any, email, password);
+  if (credential.user && !credential.user.emailVerified) {
+    await sendEmailVerification(credential.user);
+    await signOut(auth as any);
+    const error: any = new Error('Your email is not verified.');
+    error.code = 'auth/email-not-verified';
+    throw error;
+  }
+};
+
+export const registerWithEmail = async (email: string, password: string): Promise<void> => {
+  if (isDemoMode || !auth || 'currentUser' in auth === false) {
+    throw new Error('Email signup is unavailable in demo mode.');
+  }
+
+  const credential = await createUserWithEmailAndPassword(auth as any, email, password);
+  if (credential.user) {
+    await sendEmailVerification(credential.user);
+    await signOut(auth as any);
+  }
+};
+
+export const resendVerificationEmail = async (): Promise<void> => {
+  if (isDemoMode || !auth || 'currentUser' in auth === false || !auth.currentUser) {
+    throw new Error('You must be signed in to resend verification email.');
+  }
+
+  if (auth.currentUser.emailVerified) {
+    throw new Error('Your email is already verified.');
+  }
+
+  await sendEmailVerification(auth.currentUser);
 };
 
