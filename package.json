@@ -13,7 +13,8 @@
     "firebase:rules": "firebase deploy --only firestore:rules",
     "seed:bottles": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx scripts/seed-bottles.ts",
     "seed:cli": "NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/seed-bottles-cli.js",
-    "add:bottles": "NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/add-bottles.js"
+    "add:bottles": "NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/add-bottles.js",
+    "search:user": "NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/search-user.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",

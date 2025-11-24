@@ -1,0 +1,10 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow private pages
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://hi-echo-bottles.vercel.app/sitemap.xml
+

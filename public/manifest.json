@@ -1,0 +1,22 @@
+{
+  "name": "EchoBottle - 听见海的声音",
+  "short_name": "EchoBottle",
+  "description": "匿名漂流瓶社区 - 在数字海洋中投掷你的心事",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050a14",
+  "theme_color": "#0ea5e9",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "lifestyle", "entertainment"],
+  "lang": "zh-CN",
+  "dir": "ltr"
+}
+
