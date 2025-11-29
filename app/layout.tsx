@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/context/AuthContext';
 import { Analytics } from '@vercel/analytics/next';
+import { ConsoleFilter } from '@/lib/utils/console-filter';
 
 export const metadata: Metadata = {
   title: {
@@ -81,6 +82,7 @@ export default function RootLayout({
         <link rel="icon" href="/og-image.jpg" />
       </head>
       <body className="font-sans antialiased">
+        <ConsoleFilter />
         <AuthProvider>{children}</AuthProvider>
         <Analytics />
       </body>
