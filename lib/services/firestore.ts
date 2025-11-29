@@ -153,6 +153,13 @@ export const subscribeToInbox = (userId: string, callback: BottlesCallback): Uns
     return () => {};
   }
 
+  // Don't subscribe if userId is invalid or doesn't match current auth user
+  if (!userId || userId === 'demo-user') {
+    console.warn('[subscribeToInbox] Invalid userId, returning empty array');
+    callback([]);
+    return () => {};
+  }
+
   const q = query(
     collection(db, 'artifacts', appId, 'users', userId, 'inbox'),
     orderBy('createdAt', 'desc')
@@ -164,7 +171,13 @@ export const subscribeToInbox = (userId: string, callback: BottlesCallback): Uns
       ...doc.data()
     } as Bottle));
     callback(bottles);
-  }, (error) => {
+  }, (error: any) => {
+    // Handle permission errors gracefully
+    if (error?.code === 'permission-denied' || error?.message?.includes('permission') || error?.code === 'permission-denied') {
+      console.warn("Permission denied for inbox subscription. User may have signed out or userId doesn't match auth.uid.");
+      callback([]);
+      return;
+    }
     console.error("Data fetch error:", error);
     callback([]);
   });
