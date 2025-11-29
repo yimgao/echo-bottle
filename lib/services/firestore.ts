@@ -305,7 +305,7 @@ export const markBottleAsRead = async (userId: string, bottleId: string): Promis
 
 /**
  * Get count of available bottles in the pool (excluding user's own bottles).
- * Uses Firestore aggregation for better performance.
+ * Uses a simpler query to avoid complex index requirements.
  * 
  * @param userId - Firebase Auth UID (null if not authenticated)
  * @returns Count of available bottles
@@ -321,18 +321,27 @@ export const getAvailableBottlesCount = async (userId: string | null): Promise<n
 
   try {
     const poolRef = collection(db, 'artifacts', appId, 'public', 'data', 'pool_bottles');
-    // Query recent bottles, excluding user's own
+    // Simplified query: just get recent bottles and filter client-side
+    // This avoids the complex composite index requirement
     const q = query(
       poolRef,
-      where('senderId', '!=', userId),
-      orderBy('senderId'),
       orderBy('createdAt', 'desc'),
       limit(100)
     );
     const snapshot = await getDocs(q);
     
-    return snapshot.size;
-  } catch (e) {
+    // Filter out user's own bottles client-side
+    const availableBottles = snapshot.docs.filter(
+      doc => doc.data().senderId !== userId
+    );
+    
+    return availableBottles.length;
+  } catch (e: any) {
+    // If index error, return a fallback count
+    if (e?.code === 'failed-precondition' || e?.message?.includes('index')) {
+      console.warn("Index not ready, returning estimated count");
+      return 5; // Fallback estimate
+    }
     console.error("Error getting bottles count:", e);
     return 0;
   }

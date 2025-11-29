@@ -103,7 +103,16 @@ export const loginWithGoogle = async (): Promise<void> => {
     return;
   }
 
-  await signInWithPopup(auth as any, googleProvider);
+  try {
+    await signInWithPopup(auth as any, googleProvider);
+  } catch (error: any) {
+    // Handle popup blocked or COOP policy errors gracefully
+    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/popup-closed-by-user') {
+      throw new Error('Popup was blocked or closed. Please allow popups and try again.');
+    }
+    // Re-throw other errors
+    throw error;
+  }
 };
 
 export const loginAnonymously = async (): Promise<void> => {
