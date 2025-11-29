@@ -90,6 +90,37 @@ Access at: `https://vercel.com/your-username/echo-bottle`
 - Environment variables not set correctly
 - Redeploy after setting variables
 
+### Getting "auth/unauthorized-domain" Error?
+This error occurs when your domain is not authorized in Firebase. **Fix it:**
+
+1. **Identify your domain:**
+   - Check the error message - it will show the domain (e.g., `localhost`, `your-app.vercel.app`)
+   - For local development: `localhost` should be auto-added, but check if you're using a custom port
+
+2. **Add domain to Firebase:**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Select your project: `echobottle-60d27`
+   - Navigate to: **Authentication** → **Settings** → **Authorized domains**
+   - Click **"Add domain"**
+   - Add your domain:
+     - For local dev: `localhost` (usually already there)
+     - For Vercel: `your-app.vercel.app` (replace with your actual Vercel domain)
+     - For custom domain: `yourdomain.com` and `www.yourdomain.com`
+   - Click **"Add"**
+
+3. **Common domains to add:**
+   - `localhost` (for local development)
+   - `your-app.vercel.app` (your Vercel deployment URL)
+   - `your-custom-domain.com` (if using custom domain)
+   - `www.your-custom-domain.com` (if using www subdomain)
+
+4. **After adding:**
+   - Wait a few seconds for changes to propagate
+   - Refresh your app and try logging in again
+   - The error should be resolved
+
+**Note:** Firebase automatically includes `localhost` and your Firebase hosting domains. You only need to manually add custom domains or Vercel domains.
+
 ---
 
 ## 🔥 Firebase Setup Checklist

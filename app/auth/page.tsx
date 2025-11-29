@@ -30,6 +30,21 @@ export default function AuthRoute() {
         return 'Verification email sent! Please check your inbox and follow the link before signing in.';
       case 'auth/email-not-verified':
         return 'Your email is not verified yet. We just re-sent the verification link—check your inbox, then sign in again.';
+      case 'auth/unauthorized-domain':
+        if (typeof window !== 'undefined') {
+          const currentDomain = window.location.hostname;
+          const currentPort = window.location.port;
+          const fullOrigin = window.location.origin;
+          const domainInfo = currentPort ? `${currentDomain}:${currentPort}` : currentDomain;
+          
+          // Special handling for localhost with port
+          if (currentDomain === 'localhost' && currentPort) {
+            return `Domain "${domainInfo}" is not authorized. For localhost with a port, add "${currentDomain}" (without port) to Firebase Console > Authentication > Settings > Authorized domains. Full URL: ${fullOrigin}`;
+          }
+          
+          return `Domain "${domainInfo}" is not authorized. Please add "${currentDomain}" to Firebase Console > Authentication > Settings > Authorized domains. Full URL: ${fullOrigin}`;
+        }
+        return 'Domain is not authorized. Please add your domain to Firebase Console > Authentication > Settings > Authorized domains.';
       default:
         return error?.message || 'Login failed. Please try again.';
     }
@@ -77,6 +92,17 @@ export default function AuthRoute() {
       router.push('/home');
     } catch (e: any) {
       console.error('Login failed', e);
+      
+      // Log domain information for debugging unauthorized-domain errors
+      if (e?.code === 'auth/unauthorized-domain' && typeof window !== 'undefined') {
+        console.error('Current domain info:', {
+          hostname: window.location.hostname,
+          port: window.location.port,
+          origin: window.location.origin,
+          href: window.location.href
+        });
+      }
+      
       setErrorMessage(formatAuthError(e));
     } finally {
       setLoadingType(null);
